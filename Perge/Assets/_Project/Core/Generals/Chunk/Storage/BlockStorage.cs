@@ -1,8 +1,7 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using Core.Chunks.Storage.Arrays;
 using Core.PackageUtils;
-using UnityEngine;
+using Packing;
 
 namespace Core.Chunks.Storage
 {
@@ -26,32 +25,38 @@ namespace Core.Chunks.Storage
 
         public BlockStorage(BlockStream stream)
         {
-            int bitsPerBlock = stream.ReadInt();
+            var bytes = stream.ReadBytes();
+            bytes = Deflate.Decompress(bytes);
 
-            IStorageArray storage = null;
-
-            if (bitsPerBlock <= 8)
+            using (BlockStream blockStream = new BlockStream(bytes))
             {
-                _palleteStorage = new PalleteStorage(stream);
+                int bitsPerBlock = blockStream.ReadInt();
+
+                IStorageArray storage = null;
+
+                if (bitsPerBlock <= 8)
+                {
+                    _palleteStorage = new PalleteStorage(blockStream);
+                }
+
+                if (bitsPerBlock == 4)
+                    storage = new NibbleArray(StorageScale, _palleteStorage);
+
+                if (bitsPerBlock == 8)
+                    storage = new ByteArray(StorageScale, _palleteStorage);
+
+                if (bitsPerBlock == 16)
+                    storage = new UshortArray(StorageScale);
+
+                int count = blockStream.ReadInt();
+
+                for (int i = 0; i < count; i++)
+                {
+                    storage.RawSet(i, (byte) blockStream.ReadByte());
+                }
+
+                _storageArray = storage;
             }
-
-            if (bitsPerBlock == 4)
-                storage = new NibbleArray(StorageScale, _palleteStorage);
-            
-            if (bitsPerBlock == 8)
-                storage = new ByteArray(StorageScale, _palleteStorage);
-            
-            if (bitsPerBlock == 16)
-                storage = new UshortArray(StorageScale);
-
-            int count = stream.ReadInt();
-
-            for (int i = 0; i < count; i++)
-            {
-                storage.RawSet(i, (byte)stream.ReadByte());
-            }
-
-            _storageArray = storage;
         }
 
         public IStorageArray GetStorage()
@@ -61,17 +66,25 @@ namespace Core.Chunks.Storage
 
         public void Write(BlockStream stream)
         {
-            stream.WriteInt(_bitsPerBlock);
-            if (_bitsPerBlock <= 8)
+            using (var blockStorage = new BlockStream(PackageType.Empty))
             {
-                _palleteStorage.Write(stream);
-            }
+                blockStorage.WriteInt(_bitsPerBlock);
+                if (_bitsPerBlock <= 8)
+                {
+                    _palleteStorage.Write(blockStorage);
+                }
 
-            stream.WriteInt(_storageArray.GetRaw().Length);
-            
-            for (int i = 0; i < _storageArray.GetRaw().Length; i++)
-            {
-                stream.WriteByte(_storageArray.GetRaw()[i]);
+                blockStorage.WriteInt(_storageArray.GetRaw().Length);
+
+                for (int i = 0; i < _storageArray.GetRaw().Length; i++)
+                {
+                    blockStorage.WriteByte(_storageArray.GetRaw()[i]);
+                }
+
+                var bytes = blockStorage.ToArray();
+                bytes = Deflate.Compress(bytes);
+                
+                stream.WriteBytes(bytes);
             }
         }
         

@@ -4,21 +4,61 @@ using UnityEngine;
 
 namespace Core.PackageUtils
 {
-    public class BlockStream : MemoryStream
+    public class BlockStream : IDisposable
     {
+        public static int InOrder;
+        
         private PackageType _packageType;
+        private MemoryStream _memoryStream;
+
+        private int _inOrder = 0;
         
-        public BlockStream(PackageType pType) : base()
+        public BlockStream(PackageType pType, bool useOrder = true)
         {
-            WriteByte((byte) pType);
+            _memoryStream = new MemoryStream();
+            
+            _memoryStream.WriteByte((byte) pType);
             _packageType = pType;
+
+            if (useOrder)
+            {
+                _inOrder = InOrder;
+                InOrder += 1;
+            }
+
+            WriteInt(_inOrder);
         }
-        public BlockStream(byte[] bytes) : base(bytes)
+
+        public int GetOrder()
         {
-            byte packageType = (byte)ReadByte();
-            _packageType = (PackageType) packageType;
+            return _inOrder;
         }
-        
+
+        public BlockStream(byte[] bytes)
+        {
+            _memoryStream = new MemoryStream(bytes);
+            
+            byte packageType = (byte)_memoryStream.ReadByte();
+            _packageType = (PackageType) packageType;
+
+            _inOrder = ReadInt();
+        }
+
+        public byte[] ToArray()
+        {
+            return _memoryStream.ToArray();
+        }
+
+        public void WriteByte(byte _byte)
+        {
+            _memoryStream.WriteByte(_byte);
+        }
+
+        public byte ReadByte()
+        {
+            return (byte)_memoryStream.ReadByte();
+        }
+
         public PackageType GetPackageType()
         {
             return _packageType;
@@ -29,7 +69,7 @@ namespace Core.PackageUtils
             byte[] bytes = BitConverter.GetBytes(value);
             for (int i = 0; i < bytes.Length; i++)
             {
-                WriteByte(bytes[i]);
+                _memoryStream.WriteByte(bytes[i]);
             }
         }
 
@@ -38,7 +78,7 @@ namespace Core.PackageUtils
             byte[] bytes = BitConverter.GetBytes(value);
             for (int i = 0; i < bytes.Length; i++)
             {
-                WriteByte(bytes[i]);
+                _memoryStream.WriteByte(bytes[i]);
             }
         }
 
@@ -46,10 +86,10 @@ namespace Core.PackageUtils
         {
             byte[] bytes =
             {
-                (byte)ReadByte(),
-                (byte)ReadByte(),
-                (byte)ReadByte(),
-                (byte)ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
             };
 
             return BitConverter.ToSingle(bytes);
@@ -59,10 +99,10 @@ namespace Core.PackageUtils
         {
             byte[] bytes =
             {
-                (byte)ReadByte(),
-                (byte)ReadByte(),
-                (byte)ReadByte(),
-                (byte)ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
+                (byte)_memoryStream.ReadByte(),
             };
 
             return BitConverter.ToInt32(bytes);
@@ -85,7 +125,7 @@ namespace Core.PackageUtils
             WriteInt(bytes.Length);
             for (int i = 0; i < bytes.Length; i++)
             {
-                WriteByte(bytes[i]);
+                _memoryStream.WriteByte(bytes[i]);
             }
         }
 
@@ -96,10 +136,15 @@ namespace Core.PackageUtils
 
             for (int i = 0; i < count; i++)
             {
-                bytes[i] = (byte)ReadByte();
+                bytes[i] = (byte)_memoryStream.ReadByte();
             }
 
             return bytes;
+        }
+
+        public void Dispose()
+        {
+            _memoryStream?.Dispose();
         }
     }
 }

@@ -25,7 +25,7 @@ namespace Core
         public void Update()
         {
             float dt = Time.deltaTime;
-            _entity.Tick(dt);
+            _entity?.Tick(dt);
 
             Tick(dt);
         }

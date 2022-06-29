@@ -1,83 +1,89 @@
-using System.Collections;
-using System.Threading;
-using Core.Chunks;
-using Core.Mono;
+using System.Collections.Generic;
 using Core.PackageUtils;
 using Core.World;
+using Unity.VisualScripting;
 using UnityEngine;
 
 namespace Core
-{ 
+{
     public class DedicatedClient : Client
     {
         private LocalPlayer _localPlayer;
         private ClientWorld _clientWorld;
+
+        private PackageChunkHandler _packageChunkHandler;
+
+        private Dictionary<int, MonoServerPlayer> _monoServerPlayer = new();
+
         public DedicatedClient(string ip, ushort port) : base(ip, port)
         {
+            _packageChunkHandler = new PackageChunkHandler();
             Debug.Log("[Client] Start");
-            _clientWorld = new ClientWorld();
         }
 
         public override void IConnected()
         {
             Debug.Log("[Client] Connected");
+            
             _localPlayer = new LocalPlayer(this);
+            _clientWorld = new ClientWorld(_localPlayer, _packageChunkHandler);
         }
-        
+
         public override void IDisconnected()
         {
             Debug.Log("[Client] Disconnected");
         }
         
-        public override void IReceived(byte[] bytes)
+        public override void Tick(float dt)
         {
-            MonoCoroutine.Instance.Play(JobChunks(bytes));
+            base.Tick(dt);
+            _clientWorld?.Tick();
         }
 
-        public IEnumerator JobChunks(byte[] bytes)
+        public override void IReceived(byte[] bytes)
         {
-            bool inJob = true;
-            Chunk chunk = null;
-
-            bool isDestroyed = false;
-            KeyIndex keyIndex = new KeyIndex(0,0);
-            
-            ThreadPool.QueueUserWorkItem((c) =>
+            using (BlockStream stream = new BlockStream(bytes))
             {
-                using (BlockStream stream = new BlockStream(bytes))
+                _packageChunkHandler.Receive(bytes, stream);
+
+                if (stream.GetPackageType() == PackageType.PlayerConnect)
                 {
-                    if (stream.GetPackageType() == PackageType.ChunkUpload)
-                    {
-                        chunk = new Chunk(_clientWorld, stream);
-                    }
+                    int id = stream.ReadInt();
 
-                    if (stream.GetPackageType() == PackageType.ChunkUnload)
+                    if (!_monoServerPlayer.ContainsKey(id))
                     {
-                        int x = stream.ReadInt();
-                        int z = stream.ReadInt();
-
-                        keyIndex = new KeyIndex(x, z);
-                        
-                        isDestroyed = true;
+                        var mono = MonoEntity.Constructor<MonoServerPlayer>(null);
+                        _monoServerPlayer.Add(id, mono);
                     }
                 }
                 
-                inJob = false;
-            });
+                if (stream.GetPackageType() == PackageType.PlayerDisconnect)
+                {
+                    int id = stream.ReadInt();
+                    
+                    if (_monoServerPlayer.ContainsKey(id))
+                    {
+                        var mono = _monoServerPlayer[id];
+                        GameObject.Destroy(mono.gameObject);
 
-            while (inJob)
-            {
-                yield return null;
-            }
+                        _monoServerPlayer.Remove(id);
+                    }
+                }
 
-            if (chunk != null)
-            {
-                _clientWorld.AddChunk(chunk);
-            }
-
-            if (isDestroyed)
-            {
-                _clientWorld.RemoveChunk(keyIndex);
+                if (stream.GetPackageType() == PackageType.PlayerPosition)
+                {
+                    int id = stream.ReadInt();
+                    Vector3 position = stream.ReadVector3();
+                    
+                    if (!_monoServerPlayer.ContainsKey(id))
+                    {
+                        var mono1 = MonoEntity.Constructor<MonoServerPlayer>(null);
+                        _monoServerPlayer.Add(id, mono1);
+                    }
+                    
+                    var mono = _monoServerPlayer[id];
+                    mono.SetPosition(position);
+                }
             }
         }
     }

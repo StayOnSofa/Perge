@@ -16,7 +16,7 @@
             return _server;
         }
 
-        public void Receive(Player player, BlockStream stream)
+        public virtual void Receive(Player player, BlockStream stream)
         {
             if (stream.GetPackageType() != _packageType)
             {

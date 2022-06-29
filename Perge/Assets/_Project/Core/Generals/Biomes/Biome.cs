@@ -12,11 +12,11 @@ namespace Core.Biomes
         protected float HeightFrequency = 1f;
 
         protected int GroundJump = 16;
-        protected int BasicHeight = 60;
-        
-        public Biome()
+        protected int BasicHeight = 80;
+
+        public void Init(int basicSeed)
         {
-            InitNoiseGenerator(1337);
+            InitNoiseGenerator(basicSeed + _biomeCount);
             SetDefaults();
 
             _biomeCount++;
@@ -62,5 +62,7 @@ namespace Core.Biomes
         {
             return GenerateBiomeNoise(x, z) > Border;
         }
+
+        public abstract ushort GetBlock(int x, int height, int z, int topHeight);
     }
 }

@@ -5,31 +5,52 @@ namespace Core
 {
     public class AppLoader : MonoSingleton<AppLoader>
     {
+        private bool _enableServer = true;
+        private bool _enableClient = true;
+        
         private DedicatedClient _client;
         private DedicatedServer _server;
         
         private void Start()
         {
+            UnityEngine.Application.runInBackground = true;
+            
+            if (_enableClient)
+                Screen.SetResolution(1280, 720, FullScreenMode.Windowed);
+           
+            if (_enableServer)
+                Screen.SetResolution(800, 240, FullScreenMode.Windowed);
+
             ENet.Library.Initialize();
             Debug.Log("[PrepareSinglePlayer]");
+
+            if (_enableServer)
+                _server = new DedicatedServer(27015);
             
-            _server = new DedicatedServer(25567);
-            _client = new DedicatedClient("localhost", 25567);
+            if (_enableClient)
+                _client = new DedicatedClient("5.76.165.82", 27015);
+            
         }
         private void Update()
         {
             float dt = Time.deltaTime;
             
-            _server.Tick(dt);
-            _client.Tick(dt);
+            if (_enableServer)
+                _server.Tick(dt);
+            
+            if (_enableClient)
+                _client.Tick(dt);
         }
 
         private void OnDestroy()
         {
             Debug.Log("[PrepareUnloading]");
             
-            _server.Dispose();
-            _client.Dispose();
+            if (_enableServer)
+                _server.Dispose();
+            
+            if (_enableClient)
+                _client.Dispose();
             
             ENet.Library.Deinitialize();
         }

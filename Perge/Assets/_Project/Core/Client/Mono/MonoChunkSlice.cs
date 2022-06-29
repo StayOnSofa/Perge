@@ -1,22 +1,24 @@
 ﻿using UnityEngine;
 using Core.Chunks;
 using Core.Graphics;
+using Vector3 = UnityEngine.Vector3;
 
 namespace Core.Mono
 {
-    public class MonoChunkSlice : MonoBehaviourAtlas, ISubscriberChunk
+    public class MonoChunkSlice : MonoBehaviourAtlas
     {
         private int _layer;
         
         private MeshChunk _meshChunk;
         private Chunk _chunk;
+
+        private bool _isBuilded = false;
+        
         public void Create(Chunk chunk, int layer)
         {
             _chunk = chunk;
             _meshChunk = new MeshChunk(_chunk);
-
-            _chunk.Subscribe(this);
-
+            
             _layer = layer;
             
             SetMesh(_meshChunk.GetMesh());
@@ -27,22 +29,29 @@ namespace Core.Mono
             transform.localPosition = position;
         }
 
-        private void OnDestroy()
+        public Bounds GetBounds()
         {
-            _chunk?.Unsubscribe(this);
-            Destroy(_meshChunk?.GetMesh());
+            Vector3 position = transform.position;
+            Vector3 scale = new Vector3(Chunk.Scale, Chunk.Scale, Chunk.Scale);
+
+            return new Bounds((position + scale/2) - Vector3.one/2, scale);
         }
 
-        public void UpdateLayer(int y)
+        public bool IsBuilded()
         {
-            int sLayer = _layer * Chunk.Scale;
-            int eLayer = sLayer + Chunk.Scale;
+            return _isBuilded;
+        }
 
-            if (y >= sLayer && y < eLayer)
-            {
-                UpdateLayer();
-                ApplyLayer();
-            }
+        private void OnDestroy()
+        {
+            Destroy(_meshChunk?.GetMesh());
+            _chunk = null;
+            _meshChunk = null;
+        }
+
+        public void UpdateLayer()
+        {
+            _isBuilded = false;
         }
 
         public void ClearLayer()
@@ -50,7 +59,7 @@ namespace Core.Mono
             _meshChunk.ClearMesh();
         }
 
-        public void UpdateLayer()
+        public void BuildLayer()
         {
             _meshChunk.Build(_layer);
         }
@@ -58,6 +67,7 @@ namespace Core.Mono
         public void ApplyLayer()
         {
             _meshChunk.Apply();
+            _isBuilded = true;
         }
     }
 }

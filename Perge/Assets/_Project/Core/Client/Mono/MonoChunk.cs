@@ -5,151 +5,90 @@ namespace Core.Mono
 { 
     public class MonoChunk : MonoBehaviour
     {
-        private MonoChunkSlice[] _chunks = new MonoChunkSlice[Chunk.Height/Chunk.Scale];
-
-        private bool _hasUpdate = false;
-        private bool _hasApply = true;
-        
         private Chunk _chunk;
-
-        private Vector3 _position;
-
         public KeyIndex KeyIndex { private set; get; }
 
+        private MonoChunkSlice[] _slices;
+        
         public void Constructor(Chunk chunk)
         {
             _chunk = chunk;
-            _chunk.OnUpdate += Rebuild;
+            _slices = new MonoChunkSlice[Chunk.Height / Chunk.Scale];
             
-            MonoChunkBuilder
-                .Instance.AddChunk(chunk.KeyIndex, this);
-
-            _position = transform.position;
-
-            KeyIndex = chunk.KeyIndex;
-        }
-
-        private void Rebuild()
-        {
-            _hasUpdate = false;
-        }
-
-        public bool IsUpdated()
-        {
-            return _hasUpdate;
-        }
-
-        public bool HasApply()
-        {
-            return _hasApply;
-        }
-
-        private MonoChunkSlice CreateSlice()
-        {
-            var gameObject = new GameObject("Slice");
+            KeyIndex = _chunk.KeyIndex;
             
-            gameObject.transform.SetParent(transform);
-            gameObject.transform.localPosition = Vector3.zero;
-            
-            return gameObject.AddComponent<MonoChunkSlice>();
+            transform.position = new Vector3(
+                KeyIndex.X * Chunk.Scale, 0, KeyIndex.Z * Chunk.Scale);
+
+            PrepareSlices();
+            _chunk.OnUpdate += ChunkUpdateLayer;
         }
 
-        public void UpdateLayer()
+        private void ChunkUpdateLayer(bool isFull, int y)
         {
-            for (int i = 0; i < _chunks.Length; i++)
+            if (isFull)
             {
-                MonoChunkSlice slice = _chunks[i];
-                if (slice != null)
+                for (int i = 0; i < _slices.Length; i++)
                 {
-                   slice.UpdateLayer();
+                    _slices[i].UpdateLayer();
                 }
             }
-            
-            _hasUpdate = true;
-            _hasApply = false;
-        }
-        
-        public void ClearLayer()
-        {
-            for (int i = 0; i < _chunks.Length; i++)
+            else
             {
-                MonoChunkSlice slice = _chunks[i];
-                if (slice != null)
-                {
-                    slice.ClearLayer();
-                }
+                int layer = y % Chunk.Scale;
+                _slices[layer].UpdateLayer();
             }
         }
         
-        public void ApplyLayer()
+        private void PrepareSlices()
         {
-            for (int i = 0; i < _chunks.Length; i++)
+            for (int i = 0; i < _slices.Length; i++)
             {
-                MonoChunkSlice slice = _chunks[i];
-                if (slice != null)
-                {
-                    slice.ApplyLayer();
-                }
-            }
-
-            _hasApply = true;
-        }
-
-        public void Create(Chunk chunk)
-        {
-            transform.position 
-                = new Vector3(chunk.KeyIndex.X, 0, chunk.KeyIndex.Z) * Chunk.Scale;
-            
-            for (int i = 0; i < _chunks.Length; i++)
-            {
-                MonoChunkSlice slice = CreateSlice();
-                slice.Create(chunk, i);
+                int layer = i;
                 
-                _chunks[i] = slice;
-            }
+                var monoObject = new GameObject("Slice");
+                monoObject.transform.SetParent(transform);
+                
+                monoObject.transform.localPosition 
+                    = new Vector3(0, layer * Chunk.Scale, 0);
 
-            Constructor(chunk);
+                var monoSlice = monoObject.AddComponent<MonoChunkSlice>();
+                monoSlice.Create(_chunk, layer);
+                
+                _slices[i] = monoSlice;
+            }
         }
 
-        public bool IsVisible()
+        public MonoChunkSlice[] GetSlices()
         {
-            for (int i = 0; i < _chunks.Length; i++)
-            {
-                MonoChunkSlice slice = _chunks[i];
-                if (slice != null)
-                {
-                    if (slice.IsVisible())
-                    {
-                        return true;
-                    }
-                }
-            }
-
-            return false;
+            return _slices;
         }
 
-        private void OnDestroy()
+        public Bounds GetBounds()
         {
-            _chunk.OnUpdate -= Rebuild;
-            
-            for (int i = 0; i < _chunks.Length; i++)
-            {
-                MonoChunkSlice slice = _chunks[i];
-                if (slice != null)
-                {
-                    Destroy(slice.gameObject);
-                }
-            }
-        }
+            Vector3 position = transform.position;
+            Vector3 scale = new Vector3(Chunk.Scale, Chunk.Height, Chunk.Scale);
 
+            return new Bounds((position + scale/2) - Vector3.one/2, scale);
+        }
+        
+        private void OnDrawGizmos()
+        {
+            var bounds = GetBounds();
+            Gizmos.DrawWireCube(bounds.center, bounds.extents * 2);
+        }
+        
         public bool IsDead()
         {
             return _chunk.IsDestroyed();
         }
 
-        public Vector3 GetPosition()
+        private void OnDestroy()
         {
-            return _position;
+            if (_chunk != null)
+            {
+                _chunk.OnUpdate -= ChunkUpdateLayer;
+            }
         }
     }
 }

@@ -1,29 +1,29 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Core.Biomes;
 using Core.Chunks;
-using Core.Mono;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace Core.World
 {
     public class ServerWorld : IWorld
     {
-        private const int _loadingSquare = 10;
-        
         private Dictionary<KeyIndex, Chunk> _chunks;
+        
         private List<Chunk> _chunkToDestroy;
         
         private BiomeHandler _biomeHandler;
-        
-        public ServerWorld()
+
+        private DedicatedServer _server;
+        public ServerWorld(DedicatedServer server)
         {
+            _server = server;
             _chunks = new Dictionary<KeyIndex, Chunk>();
             _chunkToDestroy = new List<Chunk>();
             
             _biomeHandler = new BiomeHandler();
         }
-
+        
         public Chunk GetChunk(int x, int z)
         {
             var key = new KeyIndex(x, z);
@@ -35,9 +35,45 @@ namespace Core.World
             return null;
         }
         
-        public bool HasChunk(int x, int z)
+        public Vector2Int ToChunkCoordinates(int globalX, int globalZ)
         {
-            return _chunks.ContainsKey(new KeyIndex(x, z));
+            int chunkX = (int)Mathf.Floor(globalX / Chunk.Scale);
+            int chunkZ = (int)Mathf.Floor(globalZ / Chunk.Scale);
+
+            return new Vector2Int(chunkX, chunkZ);
+        }
+
+        public Vector2Int ToBlockCords(int globalX, int globalZ)
+        {
+            var key = KeyIndex
+                .ToChunkCoordinates(globalX, globalZ);
+            
+            int blockX = (int)(globalX - (key.X * Chunk.Scale));   
+            int blockZ = (int)(globalZ - (key.Z * Chunk.Scale));
+
+            return new Vector2Int(blockX, blockZ);
+        }
+
+        public void PlaceBlock(ushort blockID, int x, int y, int z)
+        {
+            var key = KeyIndex
+                .ToChunkCoordinates(x, z);
+            
+            var chunk = GetOrCreate(key.X, key.Z);
+            var localBlock = ToBlockCords(x, z);
+            
+            chunk.PlaceBlock(blockID, localBlock.x, y, localBlock.y);
+        }
+
+        public void BreakBlock(int x, int y, int z)
+        {
+            var key = KeyIndex
+                .ToChunkCoordinates(x, z);
+            
+            var chunk = GetOrCreate(key.X, key.Z);
+            var localBlock = ToBlockCords(x, z);
+            
+            chunk.BreakBlock(localBlock.x, y, localBlock.y);
         }
 
         public bool HasChunk(KeyIndex index)
@@ -50,27 +86,14 @@ namespace Core.World
             var key = new KeyIndex(x, z);
 
             if (HasChunk(key))
+            {
                 return _chunks[key];
+            }
 
-            var chunk = new Chunk(null, key, _biomeHandler);
+            var chunk = new Chunk(this, key, _biomeHandler, false);
             _chunks.Add(key, chunk);
             
             return chunk;
-        }
-
-        public void СhunkСreated(Chunk chunk)
-        {
-            return;
-        }
-        
-        private void DeleteFromRemoveList(Chunk chunk)
-        {
-            Debug.LogWarning(_chunkToDestroy.Count);
-            
-            if (_chunkToDestroy.Contains(chunk))
-            {
-                _chunkToDestroy.Remove(chunk);
-            }
         }
         
         private void CollectChunkToRemoveList()
@@ -80,36 +103,36 @@ namespace Core.World
                 _chunkToDestroy.Add(chunk);
             }
         }
-
-        public IEnumerable<Chunk> GetChunksFromActiveChunkLoader(ServerPlayer serverPlayer, int radius)
+        
+        private void DeleteFromRemoveList(Chunk chunk)
         {
-            Chunk[] chunks = new Chunk[((radius-1) + (radius-1)) * ((radius-1) + (radius-1))];
-            KeyIndex key = serverPlayer.GetChunkBorder();
-
-            int index = 0;
-
-            for (int x = -radius; x < radius; x++)
+            if (_chunkToDestroy.Contains(chunk))
             {
-                for (int z = -radius; z < radius; z++)
+                _chunkToDestroy.Remove(chunk);
+            }
+        }
+
+        private List<Chunk> _chunkBuffer = new List<Chunk>();
+        private Chunk[] GetChunksFromActiveChunkLoader(ServerPlayer serverPlayer)
+        {
+            _chunkBuffer.Clear();
+            
+            KeyIndex key = serverPlayer.GetChunkBorder();
+            int radius = serverPlayer.GetSquareLoading();
+            
+            for (int x = -radius; x < radius + 2; x++)
+            {
+                for (int z = -radius; z < radius + 2; z++)
                 {
                     int X = key.X + x;
                     int Z = key.Z + z;
 
                     Chunk chunk = GetOrCreate(X, Z);
-                    DeleteFromRemoveList(chunk);
-
-                    if (x > -radius && x < radius - 1)
-                    {
-                        if (z > -radius && z < radius - 1)
-                        {
-                            chunks[index] = chunk;
-                            index++;
-                        }
-                    }
+                    _chunkBuffer.Add(chunk);
                 }
             }
 
-            return chunks;
+            return _chunkBuffer.ToArray();
         }
         
         private void ClearUnusedChunksList()
@@ -124,46 +147,59 @@ namespace Core.World
         }
 
         private bool _inJob = false;
+
+        private float _everySeconds;
         
         public void Tick(IEnumerable<ServerPlayer> players)
         {
-            if (_inJob == false)
-            {
-                _inJob = true;
-                MonoCoroutine.Instance.Play(AsyncTick(players));
-            }
-        }
+            _everySeconds += Time.deltaTime;
 
-        private IEnumerator AsyncClearTick()
-        {
-            yield return MonoThreading.Instance.ThreadAsync(() =>
+            if (_everySeconds > IWorld.c_TicksPerSecond)
             {
-                ClearUnusedChunksList();
-                CollectChunkToRemoveList();
-            });
+                if (_inJob == false)
+                {
+                    _inJob = true;
+                    PrepareLoading(players);
+                }
+
+                _everySeconds = 0;
+            }
         }
         
-        private IEnumerator AsyncTick(IEnumerable<ServerPlayer> players)
+        private async void PrepareLoading(IEnumerable<ServerPlayer> players)
         {
-            yield return AsyncClearTick();
-            
-            foreach (var player in players)
-            {
-                IEnumerable<Chunk> chunks = null;
-
-                    yield return MonoThreading.Instance.ThreadAsync(() =>
-                    {
-                        chunks = GetChunksFromActiveChunkLoader(player, _loadingSquare);
-                    });
-
-                    if (!player.InWork())
-                    {
-                        player.ApplyChunk(chunks);
-                    }
-            }
-            
+            await ThreadAsync(players);
             _inJob = false;
         }
 
+        private async UniTask ThreadAsync(IEnumerable<ServerPlayer> players)
+        {
+            ClearUnusedChunksList();
+            
+            await UniTask.SwitchToThreadPool();
+            
+            CollectChunkToRemoveList();
+
+            foreach (var player in players)
+            {
+                 var chunks = GetChunksFromActiveChunkLoader(player);
+
+                foreach (var chunk in chunks)
+                {
+                    DeleteFromRemoveList(chunk);
+                    chunk.BuildStructure();
+                }
+
+                if (!player.InJob())
+                {
+                    if (player.IsChangeBorder())
+                    {
+                        player.ApplyChunks(chunks);
+                    }
+                }
+            }
+            
+            await UniTask.SwitchToMainThread();
+        }
     }
 }

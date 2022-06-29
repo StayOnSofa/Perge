@@ -1,13 +1,4 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using UnityEngine;
-
 /// <summary>
 /// A simple free camera to be added to a Unity game object.
 /// 

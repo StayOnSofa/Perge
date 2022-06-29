@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Core.Chunks.Storage.Arrays
 {
-    public class NibbleArray : ICloneable, IEnumerable, IStorageArray
+    public class NibbleArray : IEnumerable, IStorageArray
     {
         private List<int> _list;
         public byte[] RawData { get; private set; }
@@ -91,11 +91,6 @@ namespace Core.Chunks.Storage.Arrays
     
         public void SetRawData(byte[] source) {
             Array.Copy(source, RawData, source.Length);
-        }
-    
-        public object Clone()
-        {
-            return new NibbleArray((byte[])RawData.Clone());
         }
 
         public IEnumerator GetEnumerator()

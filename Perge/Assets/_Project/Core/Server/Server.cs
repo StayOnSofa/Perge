@@ -35,7 +35,7 @@ namespace Core
 				{
 					if (_server.CheckEvents(out netEvent) <= 0)
 					{
-						if (_server.Service((int)dt, out netEvent) <= 0)
+						if (_server.Service(0, out netEvent) <= 0)
 							break;
 
 						polled = true;

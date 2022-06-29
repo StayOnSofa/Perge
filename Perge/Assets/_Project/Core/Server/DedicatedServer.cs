@@ -1,5 +1,6 @@
 using ENet;
 using System.Collections.Generic;
+using System.Linq;
 using Core.PackageUtils;
 using Core.PackageUtils.Handlers;
 using Core.World;
@@ -21,21 +22,53 @@ namespace Core
             
             _packageHandlers.Add(new PackagePlayerStatsHandler(this));
 
-            _serverWorld = new ServerWorld();
+            _serverWorld = new ServerWorld(this);
         }
 
         public override void IncomingConnection(Peer peer)
         {
             Debug.Log("Player Connected");
-            
+
             if (!_players.ContainsKey(peer))
-                _players.Add(peer, new ServerPlayer(this, peer, $"Player: {peer.ID}"));
+            {
+                var player = new ServerPlayer(this, peer, $"Player: {peer.ID}");
+                _players.Add(peer, player);
+
+                using (var blockStream = new BlockStream(PackageType.PlayerConnect))
+                {
+                    blockStream.WriteInt(player.PlayerID);
+                    
+                    foreach (var item in _players)
+                    {
+                        if (item.Value != player)
+                        {
+                            SendToPlayer(PacketFlags.Reliable, item.Value, blockStream.ToArray());
+                        }
+                    }
+                }
+            }
         }
         
         public override void IncomingDisconnection(Peer peer)
         {
             if (_players.ContainsKey(peer))
+            {
+                var player = _players[peer];
                 _players.Remove(peer);
+                
+                using (var blockStream = new BlockStream(PackageType.PlayerDisconnect))
+                {
+                    blockStream.WriteInt(player.PlayerID);
+                    
+                    foreach (var item in _players)
+                    {
+                        if (item.Value != player)
+                        {
+                            SendToPlayer(PacketFlags.Reliable, item.Value, blockStream.ToArray());
+                        }
+                    }
+                }
+            }
         }
 
         public override void Tick(float dt)
@@ -44,10 +77,11 @@ namespace Core
 
             foreach (var item in _players)
             {
-                item.Value.Tick(dt);
+                item.Value.Tick(dt, _players.Values);
             }
 
-            _serverWorld.Tick(_players.Values);
+            var array = _players.Values.ToArray();
+            _serverWorld.Tick(array);
         }
 
         public void SendToPlayer(PacketFlags flags, ServerPlayer player, byte[] bytes)
@@ -70,7 +104,6 @@ namespace Core
                     foreach (var handler in _packageHandlers)
                     {
                         handler.Handle(player, stream);
-
                     }
                 }
             }

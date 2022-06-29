@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Runtime.CompilerServices;
+using UnityEngine;
 
 namespace Core.Chunks
 {
@@ -15,8 +16,8 @@ namespace Core.Chunks
         
         public static KeyIndex ToChunkCoordinates(int globalX, int globalZ)
         {
-            int chunkX = (int)Mathf.Floor(globalX / Chunk.Scale);
-            int chunkZ = (int)Mathf.Floor(globalZ / Chunk.Scale);
+            int chunkX = Mathf.FloorToInt((float)globalX / Chunk.Scale);
+            int chunkZ = Mathf.FloorToInt((float)globalZ / Chunk.Scale);
 
             return new KeyIndex(chunkX, chunkZ);
         }
@@ -31,7 +32,7 @@ namespace Core.Chunks
         {
             return X == other.X && Z == other.Z;
         }
-        
+
         public override int GetHashCode()
         {
             return X.GetHashCode() ^ (Z.GetHashCode() << 2);
