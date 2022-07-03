@@ -27,16 +27,8 @@ namespace Core.Biomes
 
         public override ushort GetBlock(int x, int height, int z, int topHeight)
         {
-            if (topHeight - 2 == height)
-            {
-                bool place = _noiseMapGenerator.GetObjectSpawn(x, z, 2048);
-                if (place)
-                {
-                    //return BlockRegister.StructureGeode;
-                }
-            }
-
-            return CoreRegister.STONE;
+            ushort blockId = CoreRegister.STONE;
+            return blockId;
         }
     }
 }

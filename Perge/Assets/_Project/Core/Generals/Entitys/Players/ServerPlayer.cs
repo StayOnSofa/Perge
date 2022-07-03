@@ -117,7 +117,7 @@ namespace Core
                 var bytes = _byteBuffer.Dequeue();
                 _server.SendToPlayer(PacketFlags.Reliable, this, bytes);
 
-                if (index % 16 == 0)
+                if (index % 4 == 0)
                 {
                     await Task.Yield();
                 }

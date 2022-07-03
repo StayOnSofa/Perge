@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Threading.Tasks;
 using Core.Chunks;
 using Core.Mono;
 using Core.PackageUtils;
@@ -95,14 +96,14 @@ namespace Core.World
                 if (_inJob == false)
                 {
                     _inJob = true;
-                    PrepareLoading();
+                    Task.Run(PrepareLoading);
                 }
 
                 _everySeconds = 0;
             }
         }
 
-        private async void PrepareLoading()
+        private async Task PrepareLoading()
         {
             await PrepareWorlds();
             _inJob = false;
@@ -171,7 +172,7 @@ namespace Core.World
             if (_monoChunksToChunk.ContainsKey(chunk.KeyIndex))
             {
                 var monoChunk = _monoChunksToChunk[chunk.KeyIndex];
-                GameObject.Destroy(monoChunk.gameObject);
+                Object.Destroy(monoChunk.gameObject);
 
                 _monoChunksToChunk.Remove(chunk.KeyIndex);
             }
@@ -182,7 +183,7 @@ namespace Core.World
             if (_monoChunksToChunk.ContainsKey(chunk.KeyIndex))
             {
                 var monoChunk = _monoChunksToChunk[chunk.KeyIndex];
-                GameObject.Destroy(monoChunk.gameObject);
+                Object.Destroy(monoChunk.gameObject);
             }
 
             var monochunk = new GameObject("Chunk").AddComponent<MonoChunk>();

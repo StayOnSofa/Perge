@@ -60,7 +60,9 @@ namespace Core.Graphics
                         if (blockId != 0)
                         {
                             Block block = BlockRegister.GetBlock(blockId);
-                            
+
+                            if (!BlockRegister.IsSpecialBlock(blockId))
+                            {
                                 int _plusX = x + 1;
                                 if (IsAirOrSpecial(_plusX, y, z))
                                 {
@@ -94,8 +96,13 @@ namespace Core.Graphics
                                 int _minusY = y - 1;
                                 if (IsAirOrSpecial(x, _minusY, z))
                                 {
-                                    AddSide( BlockSide.YMinus, block, new Vector3(x, _y, z));
+                                    AddSide(BlockSide.YMinus, block, new Vector3(x, _y, z));
                                 }
+                            }
+                            else
+                            {
+                                AddMesh((BlockMesh)block, new Vector3(x, _y, z));
+                            }
                         }
                     }
                 }
@@ -105,7 +112,13 @@ namespace Core.Graphics
         private bool IsAirOrSpecial(int x, int y, int z)
         {
             ushort blockId = _chunk.GetBlock(x, y, z);
-            return blockId == 0;
+            return BlockRegister.IsAirOrSpecialBlock(blockId);
+        }
+
+        public void AddMesh(BlockMesh block, Vector3 position)
+        {
+            Rect textureCoordinates = block.GetTextureOffset(BlockSide.YPlus);
+            AddMesh(block.GetVertices(), block.GetNormals(), block.GetUvs(), block.GetTriangles(), textureCoordinates, position);
         }
 
         public void AddSide(BlockSide side, Block block, Vector3 position)

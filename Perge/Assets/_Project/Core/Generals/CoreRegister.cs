@@ -7,9 +7,11 @@
         public static ushort GRASS;
         public static ushort STONE;
         public static ushort SAND;
-        public static ushort STRUCTURE;
+        public static ushort TREEBIRCH;
         public static ushort BIRCHLOG;
         public static ushort BIRCHLEAVES;
+        public static ushort POPPY;
+        public static ushort GRASSPLANT;
         
         [BlockRegister]
         public void Register()
@@ -19,9 +21,11 @@
             GRASS = BlockRegister.Register<Grass>();
             STONE = BlockRegister.Register<Stone>();
             SAND = BlockRegister.Register<Sand>();
-            STRUCTURE = BlockRegister.Register<BlockStructure>();
+            TREEBIRCH = BlockRegister.Register<BirchBlock>();
             BIRCHLOG = BlockRegister.Register<BirchLog>();
             BIRCHLEAVES = BlockRegister.Register<BirchLeaves>();
+            POPPY = BlockRegister.Register<Poppy>();
+            GRASSPLANT = BlockRegister.Register<GrassPlant>();
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using Core.World;
 using UnityEngine;
 
 namespace Core.Generals
@@ -31,10 +32,52 @@ namespace Core.Generals
         private static Dictionary<Type, Block> _fastSearch 
             = new Dictionary<Type, Block>();
 
+        private static ushort _basicBlock = 0;
+        private static ushort _specialBlock = ushort.MaxValue/2;
+        private static ushort _tickBlock = ushort.MaxValue/2 + ushort.MaxValue/4;
         public static ushort Register<T>() where T : Block
         {
             ushort id = 0;
-            
+
+            if (typeof(T).IsSubclassOf(typeof(BlockMesh)))
+            {
+                id = RegisterBlock<T>(_specialBlock);
+                _specialBlock += 1;
+            }
+            else
+            {
+                if (typeof(T).IsSubclassOf(typeof(BlockStructure)))
+                {
+                    id = RegisterBlock<T>(_tickBlock);
+                    _tickBlock += 1;
+                }
+                else
+                {
+                    id = RegisterBlock<T>(_basicBlock);
+                    _basicBlock += 1;
+                }
+            }
+
+            return id;
+        }
+
+        public static bool IsAirOrSpecialBlock(ushort blockID)
+        {
+            return blockID == 0 || (blockID >= ushort.MaxValue / 2);
+        }
+
+        public static bool IsSpecialBlock(ushort blockID)
+        {
+            return (blockID >= ushort.MaxValue / 2);
+        }
+
+        public static bool IsTickBlock(ushort blockID)
+        {
+            return (blockID >= (ushort.MaxValue/2 + ushort.MaxValue/4));
+        }
+
+        public static ushort RegisterBlock<T>(ushort id) where T : Block
+        {
             bool inRegister = false;
             
             foreach (var block in _registeredBlocks.Values)
@@ -50,13 +93,12 @@ namespace Core.Generals
 
             if (!inRegister)
             {
-               var block = (T)Activator.CreateInstance(typeof(T));
+                var block = (T)Activator.CreateInstance(typeof(T));
+                
+                block.Init(id);
 
-               id = (ushort)_registeredBlocks.Count;
-               block.Init(id);
-
-               _registeredBlocks.Add(id, block);
-               _fastSearch.Add(typeof(T), block);
+                _registeredBlocks.Add(id, block);
+                _fastSearch.Add(typeof(T), block);
             }
 
             return id;

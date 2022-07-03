@@ -11,8 +11,7 @@ namespace Core.Biomes
         public BiomeHandler()
         {
             _defaultBiome = new BiomeHills();
-
-            _biomes.Add(new BiomeDesert());
+            
             _biomes.Add(new BiomeMountain());
 
             InitBiomes(1337);

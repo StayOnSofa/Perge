@@ -14,13 +14,13 @@ namespace Core
         private void Start()
         {
             UnityEngine.Application.runInBackground = true;
-            
-            if (_enableClient)
-                Screen.SetResolution(1280, 720, FullScreenMode.Windowed);
-           
+
             if (_enableServer)
                 Screen.SetResolution(800, 240, FullScreenMode.Windowed);
 
+            if (_enableClient)
+                Screen.SetResolution(1280, 720, FullScreenMode.Windowed);
+            
             ENet.Library.Initialize();
             Debug.Log("[PrepareSinglePlayer]");
 
@@ -28,7 +28,7 @@ namespace Core
                 _server = new DedicatedServer(27015);
             
             if (_enableClient)
-                _client = new DedicatedClient("5.76.165.82", 27015);
+                _client = new DedicatedClient("95.58.138.2", 27015);
             
         }
         private void Update()

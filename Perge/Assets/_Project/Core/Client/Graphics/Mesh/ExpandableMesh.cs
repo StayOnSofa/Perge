@@ -32,35 +32,32 @@ namespace Core.Graphics
             _triangles.Clear();
         }
 
-        public void AddMesh(Mesh mesh, Rect textureCoordinates, Vector3 position)
+        public void AddMesh(Vector3[] vertices, Vector3[] normals, Vector2[] uvs, int[] triangles, Rect textureCoordinates, Vector3 position)
         {
             int pastVerticeCount = _vertices.Count;
 
-            foreach (Vector3 vertice in mesh.vertices)
+            foreach (Vector3 vertice in vertices)
             {
                 _vertices.Add((vertice * 0.5f) + position);
             }
 
-            foreach (Vector3 normal in mesh.normals)
+            foreach (Vector3 normal in normals)
             {
                 _normals.Add(normal);
             }
 
-            float unitPerPointX = 1f / s_Scale;
-            float unitPerPointY = 1f / s_Scale;
+            float sizeInUnitsX = textureCoordinates.width;
+            float sizeInUnitsY = textureCoordinates.height;
 
-            float sizeInUnitsX = 1f / (s_Scale / textureCoordinates.width);
-            float sizeInUnitsY = 1f / (s_Scale / textureCoordinates.height);
-
-            Vector2 padding = new Vector2(textureCoordinates.x * unitPerPointX, textureCoordinates.y * unitPerPointY);
+            Vector2 padding = new Vector2(textureCoordinates.x, textureCoordinates.y);
             Vector2 texuteUnitScale = new Vector2(sizeInUnitsX, sizeInUnitsY);
 
-            foreach (Vector2 uv in mesh.uv)
+            foreach (Vector2 uv in uvs)
             {
                 _uvs.Add((uv * texuteUnitScale) + padding);
             }
 
-            foreach (int triangle in mesh.triangles)
+            foreach (int triangle in triangles)
             {
                 int id = pastVerticeCount + triangle;
                 _triangles.Add(id);

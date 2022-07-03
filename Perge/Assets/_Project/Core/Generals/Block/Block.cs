@@ -14,7 +14,7 @@ namespace Core.Generals
             return _textureOffset;
         }
 
-        public void Init(ushort blockId)
+        public virtual void Init(ushort blockId)
         {
             _blockID = blockId;
         }

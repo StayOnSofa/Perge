@@ -191,12 +191,9 @@ namespace Core.Chunks
                     for (int y = 0; y <= height; y++)
                     {
                         ushort blockId = biome.GetBlock(X, y, Z, height);
-                        Block block = BlockRegister.GetBlock(blockId);
                         
-                        if (block is BlockStructure)
-                        {
+                        if (BlockRegister.IsTickBlock(blockId))
                             AddTickBlock(X,y,Z, blockId);
-                        }
                         
                         PlaceBlock(blockId, x, y, z);
                     }

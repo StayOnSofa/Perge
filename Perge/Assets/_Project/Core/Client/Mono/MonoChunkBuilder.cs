@@ -1,5 +1,7 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Core.Chunks;
+using Core.Mono.SortUtils;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -17,16 +19,18 @@ namespace Core.Mono
         
         private Camera _camera;
         private LocalPlayer _player;
+        private DistanceComparer _comparer;
         
         public MonoChunkBuilder(LocalPlayer player)
         {
             _player = player;
             _camera = player.GetCamera();
+            _comparer = new DistanceComparer(player);
         }
 
         private List<MonoChunk> _chunkBuffer = new List<MonoChunk>();
         
-        private List<MonoChunk> GetChunksFromActiveChunkLoader(Dictionary<KeyIndex, MonoChunk> preparedChunks)
+        private MonoChunk[] GetChunksFromActiveChunkLoader(Dictionary<KeyIndex, MonoChunk> preparedChunks)
         {
             _chunkBuffer.Clear();
             
@@ -49,7 +53,7 @@ namespace Core.Mono
                 }
             }
 
-            return _chunkBuffer;
+            return _chunkBuffer.ToArray();
         }
 
         private List<UniTask> _waitBuffer = new List<UniTask>();
@@ -60,7 +64,8 @@ namespace Core.Mono
             
             _waitBuffer.Clear();
             var array = GetChunksFromActiveChunkLoader(preparedChunks);
-
+            Array.Sort(array, _comparer);
+            
             await UniTask.SwitchToMainThread();
             
             foreach (var monoChunk in array)
