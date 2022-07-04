@@ -11,6 +11,7 @@ namespace Core
         {
             BlockRegister.Register();
             Atlas.Prepare();
+            PackageRegisterAttribute.Register();
             
             AppLoader.Prepare();
         }
